@@ -116,12 +116,13 @@ class Paystack extends PaymentModule {
         $country = $this->client['country'];
         $phone = $this->client['phonenumber'];
 
-        $callBackUrl = $this->callback_url . "&DR={DR}";
+        $callBackUrl = $this->callback_url . "&DR={DR}&invoice_id=$invoiceid";
 
         // $hash = $secret_key . "|" . $gatewayaccountid . "|" . $amount . "|" . $invoiceid . "|" . $callBackUrl . "|" . $gatewaytestmode;
 
         // $secure_hash = md5($hash);
-
+        $reference = mt_rand(100000,999999);
+        $reference = $reference.date("YmdHis"); 
         # System Variables
         $companyname = 'PAYSTACK';
         $code = '
@@ -131,7 +132,7 @@ class Paystack extends PaymentModule {
             data-key="'.$gatewayaccountid.'"
             data-email="'.$email.'"
             data-amount="'.$amount.'"
-            data-ref="'.$invoiceid.'"
+            data-ref="'.$reference.'"
           >
           </script>
         </form>
@@ -151,11 +152,12 @@ class Paystack extends PaymentModule {
 
     public function callback() {
 
-    $gatewayaccountid = $this->configuration['merchant_id']['value']; // Your Merchant ID
    // die(print_r($_POST));
     if(isset($_POST['paystack-trxref'])){
         //PaymentReference
     $reference = $_POST['paystack-trxref'];
+    $invoiceid = $_GET['invoice_id'];
+
     //get the full transaction details as an json from voguepay
     if($this->configuration['mode']['value'] == 'test'){
         echo $secret_key = $this->configuration['test_secret_key']['value'];
@@ -190,7 +192,7 @@ class Paystack extends PaymentModule {
     You should query your database with the merchant reference and fetch the records you saved for this transaction.
     Then you should compare the $transaction['total'] with the total from your database.*/
     if($transaction['data']['status'] == 'success'){
-        if($this->_transactionExists( $_POST['paystack-trxref']) == false ) {        
+        if($this->_transactionExists( $reference) == false ) {        
         
             $this->logActivity(array(
                 'output' => $transaction,
@@ -201,9 +203,9 @@ class Paystack extends PaymentModule {
             
             $this->addTransaction(array(
                 'client_id' => $this->client['id'],
-                'invoice_id' => $transaction['data']['reference'],
-                'description' => "Payment For Invoice ".$transaction['data']['reference'],
-                'in' => $transaction['data']['amount'] / 100,
+                'invoice_id' => $invoiceid,
+                'description' => "Payment For Invoice ".$invoiceid." with reference $reference",
+                'in' => $transaction['data']['amount'] / 100, 
                 'fee' => $transaction['data']['amount'] / 100,
                 'transaction_id' => $reference
             ));
